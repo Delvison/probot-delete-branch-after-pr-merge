@@ -1,16 +1,28 @@
 module.exports = function (robot) {
-  robot.log('Yay, the app was loaded!')
-
   robot.on([
-    'pull_request.reopened',
-    'pull_request.opened',
+    'pull_request',
+    // 'pull_request.closed',
   ], async context => {
-    robot.log(context)
-    console.log(context)
+    const pr = context.payload.pull_request
+    // robot.log(pr)
 
-    const params = context.issue({body: 'Hello World!'})
+    if (context.payload.action === 'closed' && pr.merged === true) {
+      const head = {
+        owner: pr.head.repo.owner.login,
+        repo: pr.head.repo.name,
+        ref: `heads/${pr.head.ref}`,
+      }
+      robot.log(head)
+      const deleteBranch = async () =>
+        context.github.gitdata.deleteReference(head)
 
-    // Post a comment on the issues
-    return context.github.issues.createComment(params)
+      const res = await deleteBranch()
+
+      robot.log(res)
+
+      const message = `Deleted merged branch ${head.ref}`
+
+      return context.github.pullRequests.createComment({body: message})
+    }
   })
 }
